@@ -22,6 +22,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   const menusCollection = client.db("bistro-boss").collection("menus");
+  const usersCollection = client.db("bistro-boss").collection("users");
   try {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
@@ -33,6 +34,17 @@ async function run() {
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
+  }
+
+  // post user
+  try {
+    app.post("/v1/users", async (req, res) => {
+      const query = req.body;
+      const result = await usersCollection.insertOne(query);
+      res.send(result);
+    });
+  } catch (error) {
+    res.send(error);
   }
 
   // get menus short by category
