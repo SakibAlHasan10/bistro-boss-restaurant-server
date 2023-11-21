@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 require("dotenv").config();
 const port = process.env.PORT || 5000;
@@ -23,6 +23,7 @@ const client = new MongoClient(uri, {
 async function run() {
   const menusCollection = client.db("bistro-boss").collection("menus");
   const usersCollection = client.db("bistro-boss").collection("users");
+  const cardsCollection = client.db("bistro-boss").collection("cards");
   try {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
@@ -35,7 +36,36 @@ async function run() {
     // Ensures that the client will close when you finish/error
     // await client.close();
   }
+  // user card section
+  try {
+    app.get("/v1/cards/:email", async (req, res) => {
+      const email = req.params.email;
+      const result = await cardsCollection.find({ email: email }).toArray();
+      res.send(result);
+    });
+  } catch (error) {
+    res.send(error);
+  }
+  try {
+    app.post("/v1/cards", async (req, res) => {
+      const card = req.body;
+      const result = await cardsCollection.insertOne(card);
+      res.send(result);
+    });
+  } catch (error) {
+    res.send(error);
+  }
 
+  try{
+    app.delete('/v1/cards/:id', async(req, res)=>{
+      const id = req.params.id;
+      const filter = {_id: new ObjectId(id)}
+      const result= await cardsCollection.deleteOne(filter)
+      res.send(result)
+    })
+  }catch(error){
+    res.send(error)
+  }
   // post user
   try {
     app.post("/v1/users", async (req, res) => {
