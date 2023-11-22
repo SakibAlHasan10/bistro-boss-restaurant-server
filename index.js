@@ -20,6 +20,21 @@ const client = new MongoClient(uri, {
   },
 });
 
+const secretRouter = async (req, res, next) => {
+  // console.log(req.cookies?.token)
+  const token = req.cookies?.token;
+  if (!token) {
+    return res.status(401).send({ message: "not authorized" });
+  }
+  jwt.verify(token, process.env.SECRET_TK, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: "unauthorized" });
+    }
+    req.user = decoded;
+    next();
+  });
+};
+
 async function run() {
   const menusCollection = client.db("bistro-boss").collection("menus");
   const usersCollection = client.db("bistro-boss").collection("users");
@@ -36,6 +51,32 @@ async function run() {
     // Ensures that the client will close when you finish/error
     // await client.close();
   }
+
+  //   create jwt token
+  app.post("/jwt", async (req, res) => {
+    try {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.SECRET_TK, { expiresIn: "1h" });
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production" ? true : false,
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        })
+        .send({ success: true });
+    } catch (error) {
+      res.send(error);
+    }
+  });
+  // logout
+  app.post("/logout", async (req, res) => {
+    const user = req.body;
+    res.clearCookie("token", {
+      maxAge: 0,
+      secure: process.env.NODE_ENV === "production" ? true : false,
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+    });
+  });
   // user card section
   try {
     app.get("/v1/cards/:email", async (req, res) => {
@@ -56,15 +97,15 @@ async function run() {
     res.send(error);
   }
 
-  try{
-    app.delete('/v1/cards/:id', async(req, res)=>{
+  try {
+    app.delete("/v1/cards/:id", async (req, res) => {
       const id = req.params.id;
-      const filter = {_id: new ObjectId(id)}
-      const result= await cardsCollection.deleteOne(filter)
-      res.send(result)
-    })
-  }catch(error){
-    res.send(error)
+      const filter = { _id: new ObjectId(id) };
+      const result = await cardsCollection.deleteOne(filter);
+      res.send(result);
+    });
+  } catch (error) {
+    res.send(error);
   }
   // post user
   try {
