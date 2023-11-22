@@ -6,7 +6,10 @@ require("dotenv").config();
 const port = process.env.PORT || 5000;
 
 // middleware
-app.use(cors());
+app.use(cors({
+  origin:['http://localhost:5173'],
+  credentials:true
+}));
 app.use(express.json());
 
 const uri = process.env.SECRET_URI;
@@ -53,7 +56,7 @@ async function run() {
   }
 
   //   create jwt token
-  app.post("/jwt", async (req, res) => {
+  app.post("/v1/jwt", async (req, res) => {
     try {
       const user = req.body;
       const token = jwt.sign(user, process.env.SECRET_TK, { expiresIn: "1h" });
@@ -69,7 +72,7 @@ async function run() {
     }
   });
   // logout
-  app.post("/logout", async (req, res) => {
+  app.post("/v1/logout", async (req, res) => {
     const user = req.body;
     res.clearCookie("token", {
       maxAge: 0,
@@ -80,6 +83,9 @@ async function run() {
   // user card section
   try {
     app.get("/v1/cards/:email", async (req, res) => {
+      if (req.params.email !== req.user.email) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const email = req.params.email;
       const result = await cardsCollection.find({ email: email }).toArray();
       res.send(result);
