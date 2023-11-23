@@ -2,15 +2,22 @@ const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 require("dotenv").config();
+const stripe = require("stripe")(process.env.stripe_secrect_key)
 const port = process.env.PORT || 5000;
 
 // middleware
-app.use(cors({
-  origin:['http://localhost:5173'],
-  credentials:true
-}));
+app.use(
+  cors({
+    origin: ["http://localhost:5173"],
+    credentials: true,
+  })
+);
+app.use(express.static("public"));
 app.use(express.json());
+app.use(cookieParser());
 
 const uri = process.env.SECRET_URI;
 
@@ -54,6 +61,25 @@ async function run() {
     // Ensures that the client will close when you finish/error
     // await client.close();
   }
+  // payment 
+  try{
+    app.post("/v1/create-payment-intent", async (req, res)=>{
+      const {price} = req.body;
+      const amount = parseInt(price * 100);
+      console.log(amount)
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount:amount,
+        currency:"usd",
+        payment_method_types: ['card']
+      }); 
+      res.send({
+        // tk: amount
+        clientSecret:paymentIntent.client_secret
+      })
+    })
+  }catch(error){
+    res.send(error)
+  }
 
   //   create jwt token
   app.post("/v1/jwt", async (req, res) => {
@@ -63,6 +89,7 @@ async function run() {
       res
         .cookie("token", token, {
           httpOnly: true,
+          // secure: false
           secure: process.env.NODE_ENV === "production" ? true : false,
           sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
         })
@@ -81,11 +108,12 @@ async function run() {
     });
   });
   // user card section
+
   try {
     app.get("/v1/cards/:email", async (req, res) => {
-      if (req.params.email !== req.user.email) {
-        return res.status(403).send({ message: "forbidden access" });
-      }
+      // if (req.params.email !== req.user.email) {
+      //   return res.status(403).send({ message: "forbidden access" });
+      // }
       const email = req.params.email;
       const result = await cardsCollection.find({ email: email }).toArray();
       res.send(result);
